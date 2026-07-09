@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 # ==========================================
 # ⚙️ CONFIGURATION
 # ==========================================
-BOT_TOKEN = "8954791203:AAFy_LrYlq01lKoNig42XZPzHOoMyjjJG2o"
+BOT_TOKEN = "8678223570:AAG-1KvXMFolxyp9gt5e-OP7DSdsOeEluqo"
 CHAT_ID = "6546086469" 
 CORRECT_VERIFICATION_CODE = "SECRET123"
 
