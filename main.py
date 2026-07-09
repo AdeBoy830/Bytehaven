@@ -51,7 +51,7 @@ PORTAL_HTML = """
 
 def send_alert_to_telegram(message):
     """Dispatches direct URL requests securely to the core Telegram API endpoints."""
-    url = f"https://telegram.org {BOT_TOKEN}/sendMessage"
+    url = f"https://api telegram.org {BOT_TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
     try: 
         response = requests.post(url, json=payload, timeout=5)
