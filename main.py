@@ -96,7 +96,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(
-        text=f"⚙️ *Live Session Controller Menu*:\nYour tracking domain is set to: {MY_WEBSITE_URL}",
+        text=f"⚙️ *Live Session Controller Menu*:\nYour tracking domain is set to: {MY_WEBSITE_URL}","https://corevista-netgoogle
         reply_markup=reply_markup,
         parse_mode="Markdown"
     )
